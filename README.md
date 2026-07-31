@@ -17,7 +17,7 @@ Eine selbst gehostete, mobile Webanwendung zur Dokumentation von Zugverspätunge
 ## Frische Installation aus GitHub
 
 ```bash
-git clone https://github.com/DEIN-BENUTZERNAME/fahrgastrechte-sammler.git
+git clone https://github.com/Fischje/fahrgastrechte-sammler.git
 cd fahrgastrechte-sammler
 ./install.sh
 ```
@@ -79,7 +79,7 @@ cp .env.example .env
 In `.env` das spätere GitHub-Repository eintragen:
 
 ```dotenv
-UPDATE_REPOSITORY=https://github.com/DEIN-BENUTZERNAME/fahrgastrechte-sammler.git
+UPDATE_REPOSITORY=https://github.com/Fischje/fahrgastrechte-sammler.git
 UPDATE_BRANCH=main
 ```
 
