@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}{% if journey %}Fahrt bearbeiten{% else %}Fahrt erfassen{% endif %} · Fahrgastrechte-Sammler{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-10">
+    <div class="page-heading d-flex justify-content-between align-items-center mb-3">
+      <div><span class="eyebrow">FAHRTENARCHIV</span><h1 class="h2 mb-0">{% if journey %}Fahrt bearbeiten{% else %}Neue Störung erfassen{% endif %}</h1></div>
+      <a class="btn btn-outline-light" href="{{ url_for('index') }}">Zurück</a>
+    </div>
+    <form method="post" class="card form-card p-3 p-md-4">
+      <div class="section-title"><span>1</span> Fahrt und Strecke</div>
+      <div class="row g-3">
+        <div class="col-md-4"><label class="form-label">Datum *</label><input class="form-control" type="date" name="journey_date" value="{{ journey.journey_date.isoformat() if journey else today }}" required></div>
+        <div class="col-md-4"><label class="form-label">Zugnummer *</label><input class="form-control" name="train_number" list="trainNumbers" value="{{ journey.train_number if journey else '' }}" placeholder="z. B. ICE 612" autocomplete="off" required><datalist id="trainNumbers">{% for value in train_numbers %}<option value="{{ value }}">{% endfor %}</datalist></div>
+        <div class="col-md-4 d-flex align-items-end"><div class="form-check switch-box w-100"><input class="form-check-input" type="checkbox" name="cancelled" id="cancelled" {% if journey and journey.cancelled %}checked{% endif %}><label class="form-check-label" for="cancelled">Zug ist ausgefallen</label></div></div>
+        <div class="col-md-6"><label class="form-label">Startbahnhof *</label><input class="form-control" name="departure_station" list="stations" value="{{ journey.departure_station if journey else '' }}" placeholder="Bahnhof auswählen oder eingeben" autocomplete="off" required></div>
+        <div class="col-md-6"><label class="form-label">Zielbahnhof *</label><input class="form-control" name="destination_station" list="stations" value="{{ journey.destination_station if journey else '' }}" placeholder="Bahnhof auswählen oder eingeben" autocomplete="off" required><datalist id="stations">{% for value in stations %}<option value="{{ value }}">{% endfor %}</datalist></div>
+      </div>
+      <div class="section-title mt-4"><span>2</span> Plan- und Ist-Zeiten</div>
+      <div class="row g-3">
+        <div class="col-6 col-lg-3"><label class="form-label">Plan-Abfahrt</label><input class="form-control" type="time" name="scheduled_departure" value="{{ journey.scheduled_departure if journey else '' }}"></div>
+        <div class="col-6 col-lg-3"><label class="form-label">Tatsächliche Abfahrt</label><input class="form-control" type="time" name="actual_departure" value="{{ journey.actual_departure if journey else '' }}"></div>
+        <div class="col-6 col-lg-3"><label class="form-label">Plan-Ankunft</label><input class="form-control" type="time" name="scheduled_arrival" value="{{ journey.scheduled_arrival if journey else '' }}"></div>
+        <div class="col-6 col-lg-3"><label class="form-label">Tatsächliche Ankunft</label><input class="form-control" type="time" name="actual_arrival" value="{{ journey.actual_arrival if journey else '' }}"></div>
+        <div class="col-md-4"><label class="form-label">Verspätung in Minuten</label><input class="form-control" type="number" min="0" name="delay_minutes" value="{{ journey.delay_minutes if journey else 0 }}"></div>
+      </div>
+      <div class="section-title mt-4"><span>3</span> Störung und Notizen</div>
+      <div class="row g-3">
+        <div class="col-12"><label class="form-label">Grund / Störungsinformation</label><input class="form-control" name="reason" list="reasons" value="{{ journey.reason if journey else '' }}" placeholder="Störung auswählen oder neu eingeben" autocomplete="off"><datalist id="reasons">{% for value in reasons %}<option value="{{ value }}">{% endfor %}</datalist></div>
+        <div class="col-12"><label class="form-label">Notizen</label><textarea class="form-control" rows="2" name="notes" placeholder="Optionaler kurzer Hinweis">{{ journey.notes if journey else '' }}</textarea></div>
+        <div class="col-12"><div class="form-check claim-box"><input class="form-check-input" type="checkbox" name="compensation_claimed" id="claimed" {% if journey and journey.compensation_claimed %}checked{% endif %}><label class="form-check-label" for="claimed"><strong>Entschädigung beantragt</strong><small>Markieren, sobald der Antrag eingereicht wurde.</small></label></div></div>
+      </div>
+      <div class="mt-4 d-flex justify-content-end"><button class="btn btn-success btn-lg px-4">Fahrt speichern</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

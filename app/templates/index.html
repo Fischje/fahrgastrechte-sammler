@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero-panel mb-4">
+  <div><span class="eyebrow">FAHRGASTRECHTE-SAMMLER</span><h1>Störungen sammeln.<br><span>Ansprüche im Blick.</span></h1><p>Verspätungen und Zugausfälle schnell erfassen, gesammelt bearbeiten und jährlich exportieren.</p></div>
+  <a class="btn btn-success btn-lg" href="{{ url_for('journey_new') }}">+ Fahrt erfassen</a>
+</section>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="card stat blue p-3"><div class="stat-label">Einträge {{ selected_year }}</div><div class="stat-value">{{ stats.count }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat red p-3"><div class="stat-label">Zugausfälle</div><div class="stat-value">{{ stats.cancelled }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat yellow p-3"><div class="stat-label">Verspätungsminuten</div><div class="stat-value">{{ stats.delay }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat green p-3"><div class="stat-label">Eingereicht</div><div class="stat-value">{{ stats.claimed }}</div></div></div>
+</div>
+<div class="card toolbar p-3 mb-4"><div class="d-flex flex-wrap gap-2 align-items-center">
+  <form method="get" class="d-flex gap-2"><select class="form-select" name="year" onchange="this.form.submit()">{% for year in years %}<option value="{{ year }}" {% if year==selected_year %}selected{% endif %}>Jahr {{ year }}</option>{% endfor %}</select></form>
+  <span class="toolbar-divider"></span>
+  <a class="btn btn-outline-light" href="{{ url_for('export_csv', year=selected_year) }}">CSV exportieren</a>
+  <a class="btn btn-outline-light" href="{{ url_for('export_xlsx', year=selected_year) }}">Excel exportieren</a>
+  <form method="post" action="{{ url_for('backup') }}"><button class="btn btn-outline-warning">Backup</button></form>
+</div></div>
+<form id="bulk-form" method="post" action="{{ url_for('journeys_bulk') }}">
+  <input type="hidden" name="year" value="{{ selected_year }}">
+  <div class="card bulk-toolbar p-3 mb-3">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <strong><span id="selected-count">0</span> ausgewählt</strong>
+      <select class="form-select bulk-select" name="bulk_action" required>
+        <option value="">Sammelaktion wählen</option>
+        <option value="claim">Als Entschädigung eingereicht markieren</option>
+        <option value="delete">Ausgewählte Einträge löschen</option>
+      </select>
+      <button id="bulk-submit" class="btn btn-danger" type="submit" disabled>Ausführen</button>
+    </div>
+  </div>
+  <div class="card overflow-hidden"><div class="table-responsive"><table class="table responsive-table align-middle mb-0">
+    <thead><tr><th class="select-cell"><input id="select-all" class="form-check-input" type="checkbox" aria-label="Alle Einträge auswählen"></th><th>Datum</th><th>Zug</th><th>Strecke</th><th>Plan → Ist</th><th>Verspätung</th><th>Status</th><th>Antrag</th><th></th></tr></thead>
+    <tbody>{% for j in journeys %}<tr>
+      <td class="select-cell" data-label="Auswahl"><input class="form-check-input journey-select" type="checkbox" name="journey_ids" value="{{ j.id }}" aria-label="Eintrag {{ j.id }} auswählen"></td>
+      <td data-label="Datum">{{ j.journey_date.strftime('%d.%m.%Y') }}</td>
+      <td data-label="Zug"><strong>{{ j.train_number }}</strong></td>
+      <td data-label="Strecke">{{ j.departure_station }} <span class="route-arrow">→</span> {{ j.destination_station }}</td>
+      <td data-label="Plan → Ist"><small>{{ j.scheduled_arrival or '–' }} → {{ j.actual_arrival or '–' }}</small></td>
+      <td data-label="Verspätung"><span class="delay-number">{{ j.delay_minutes }}</span> Min.</td>
+      <td data-label="Status">{% if j.cancelled %}<span class="badge text-bg-danger">Ausfall</span>{% else %}<span class="badge text-bg-success">Gefahren</span>{% endif %}</td>
+      <td data-label="Antrag">{% if j.compensation_claimed %}<span class="badge claim-done">Eingereicht</span>{% else %}<span class="text-muted">Offen</span>{% endif %}</td>
+      <td data-label="Aktionen"><div class="d-flex gap-2 justify-content-end"><a class="btn btn-sm btn-outline-light" href="{{ url_for('journey_edit', journey_id=j.id) }}">Bearbeiten</a><button class="btn btn-sm btn-outline-danger" type="submit" formaction="{{ url_for('journey_delete', journey_id=j.id) }}" onclick="return confirm('Eintrag wirklich löschen?')">Löschen</button></div></td>
+    </tr>{% else %}<tr><td colspan="9" class="empty-state"><div class="empty-icon">↗</div><strong>Noch keine Fahrten erfasst</strong><span>Lege deinen ersten Eintrag für {{ selected_year }} an.</span></td></tr>{% endfor %}</tbody>
+  </table></div></div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const all = document.getElementById('select-all');
+  const boxes = [...document.querySelectorAll('.journey-select')];
+  const count = document.getElementById('selected-count');
+  const submit = document.getElementById('bulk-submit');
+  const action = document.querySelector('[name="bulk_action"]');
+  const form = document.getElementById('bulk-form');
+  const refresh = () => {
+    const selected = boxes.filter(box => box.checked).length;
+    count.textContent = selected;
+    submit.disabled = selected === 0;
+    if (all) { all.checked = boxes.length > 0 && selected === boxes.length; all.indeterminate = selected > 0 && selected < boxes.length; }
+  };
+  if (all) all.addEventListener('change', () => { boxes.forEach(box => box.checked = all.checked); refresh(); });
+  boxes.forEach(box => box.addEventListener('change', refresh));
+  form.addEventListener('submit', event => {
+    if (event.submitter && event.submitter.formAction.includes('/journey/')) return;
+    if (action.value === 'delete' && !confirm('Alle ausgewählten Einträge wirklich löschen?')) event.preventDefault();
+  });
+  refresh();
+})();
+</script>
+{% endblock %}
