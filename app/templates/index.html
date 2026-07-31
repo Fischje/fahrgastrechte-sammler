@@ -6,7 +6,7 @@
 </section>
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3"><div class="card stat blue p-3"><div class="stat-label">Einträge {{ selected_year }}</div><div class="stat-value">{{ stats.count }}</div></div></div>
-  <div class="col-6 col-lg-3"><div class="card stat red p-3"><div class="stat-label">Zugausfälle</div><div class="stat-value">{{ stats.cancelled }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat red p-3"><div class="stat-label">Ausfälle / Abbrüche</div><div class="stat-value">{{ stats.cancelled + stats.aborted }}</div></div></div>
   <div class="col-6 col-lg-3"><div class="card stat yellow p-3"><div class="stat-label">Verspätungsminuten</div><div class="stat-value">{{ stats.delay }}</div></div></div>
   <div class="col-6 col-lg-3"><div class="card stat green p-3"><div class="stat-label">Eingereicht</div><div class="stat-value">{{ stats.claimed }}</div></div></div>
 </div>
@@ -31,7 +31,7 @@
     </div>
   </div>
   <div class="card overflow-hidden"><div class="table-responsive"><table class="table responsive-table align-middle mb-0">
-    <thead><tr><th class="select-cell"><input id="select-all" class="form-check-input" type="checkbox" aria-label="Alle Einträge auswählen"></th><th>Datum</th><th>Zug</th><th>Strecke</th><th>Plan → Ist</th><th>Verspätung</th><th>Status</th><th>Antrag</th><th></th></tr></thead>
+    <thead><tr><th class="select-cell"><input id="select-all" class="form-check-input" type="checkbox" aria-label="Alle Einträge auswählen"></th><th>Datum</th><th>Zug</th><th>Strecke</th><th>Plan → Ist</th><th>Verspätung</th><th>Ereignis</th><th>Hinweis</th><th>Antrag</th><th></th></tr></thead>
     <tbody>{% for j in journeys %}<tr>
       <td class="select-cell" data-label="Auswahl"><input class="form-check-input journey-select" type="checkbox" name="journey_ids" value="{{ j.id }}" aria-label="Eintrag {{ j.id }} auswählen"></td>
       <td data-label="Datum">{{ j.journey_date.strftime('%d.%m.%Y') }}</td>
@@ -39,10 +39,11 @@
       <td data-label="Strecke">{{ j.departure_station }} <span class="route-arrow">→</span> {{ j.destination_station }}</td>
       <td data-label="Plan → Ist"><small>{{ j.scheduled_arrival or '–' }} → {{ j.actual_arrival or '–' }}</small></td>
       <td data-label="Verspätung"><span class="delay-number">{{ j.delay_minutes }}</span> Min.</td>
-      <td data-label="Status">{% if j.cancelled %}<span class="badge text-bg-danger">Ausfall</span>{% else %}<span class="badge text-bg-success">Gefahren</span>{% endif %}</td>
+      <td data-label="Ereignis">{% if j.event_type == 'Zug ausgefallen' %}<span class="badge text-bg-danger">Zug ausgefallen</span>{% elif j.event_type == 'Zugfahrt durch DB abgebrochen' %}<span class="badge text-bg-warning">Fahrt abgebrochen</span>{% else %}<span class="badge text-bg-success">Verspätung</span>{% endif %}</td>
+      <td data-label="Hinweis"><small class="text-muted">{% if j.event_type != 'Verspätung' %}Prüfung durch DB{% elif j.delay_minutes >= 120 %}ab 120 Minuten{% elif j.delay_minutes >= 60 %}ab 60 Minuten{% elif j.delay_minutes > 0 %}unter 60 Minuten{% else %}keine Minuten eingetragen{% endif %}</small></td>
       <td data-label="Antrag">{% if j.compensation_claimed %}<span class="badge claim-done">Eingereicht</span>{% else %}<span class="text-muted">Offen</span>{% endif %}</td>
       <td data-label="Aktionen"><div class="d-flex gap-2 justify-content-end"><a class="btn btn-sm btn-outline-light" href="{{ url_for('journey_edit', journey_id=j.id) }}">Bearbeiten</a><button class="btn btn-sm btn-outline-danger" type="submit" formaction="{{ url_for('journey_delete', journey_id=j.id) }}" onclick="return confirm('Eintrag wirklich löschen?')">Löschen</button></div></td>
-    </tr>{% else %}<tr><td colspan="9" class="empty-state"><div class="empty-icon">↗</div><strong>Noch keine Fahrten erfasst</strong><span>Lege deinen ersten Eintrag für {{ selected_year }} an.</span></td></tr>{% endfor %}</tbody>
+    </tr>{% else %}<tr><td colspan="10" class="empty-state"><div class="empty-icon">↗</div><strong>Noch keine Fahrten erfasst</strong><span>Lege deinen ersten Eintrag für {{ selected_year }} an.</span></td></tr>{% endfor %}</tbody>
   </table></div></div>
 </form>
 {% endblock %}

@@ -6,6 +6,8 @@ Eine selbst gehostete, mobile Webanwendung zur Dokumentation von Zugverspätunge
 
 - Ersteinrichtung mit eigenem Benutzernamen und Passwort
 - Erfassung planmäßiger und tatsächlicher Abfahrts- und Ankunftszeiten
+- Ereignisarten: Verspätung, Zug ausgefallen, Zugfahrt durch DB abgebrochen
+- unverbindlicher Erstattungshinweis ohne Ausschluss aus Übersicht oder Export
 - Vorschläge für bekannte Zugnummern, Bahnhöfe und Störungen
 - Mehrfachauswahl in der Übersicht
 - ausgewählte Einträge gesammelt löschen
@@ -123,3 +125,7 @@ Mindestens sechs Zeichen sowie mindestens ein Buchstabe, eine Zahl und ein Sonde
 ## GitHub
 
 Das Repository enthält einen GitHub-Actions-Workflow, der bei Pushes und Pull Requests den Docker-Build prüft. Nach dem Anlegen des Repositorys müssen lediglich die Platzhalter in README und `.env.example` durch die echte Repository-Adresse ersetzt werden.
+
+## Fachliche Logik
+
+Alle erfassten Fahrten werden immer exportiert. Der Hinweis zur möglichen Erstattungsrelevanz ist ausschließlich informativ und filtert keine Einträge aus. Als Bearbeitungsstatus gibt es nur „Entschädigung eingereicht“ oder offen.

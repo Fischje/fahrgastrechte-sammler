@@ -41,6 +41,7 @@ class Journey(db.Model):
     actual_arrival = db.Column(db.String(5), default="")
     delay_minutes = db.Column(db.Integer, default=0, nullable=False)
     cancelled = db.Column(db.Boolean, default=False, nullable=False)
+    event_type = db.Column(db.String(80), default="Verspätung", nullable=False, index=True)
     reason = db.Column(db.String(500), default="")
     ticket_price = db.Column(db.Float, default=0.0, nullable=False)
     compensation_claimed = db.Column(db.Boolean, default=False, nullable=False)
@@ -116,14 +117,16 @@ def create_app() -> Flask:
         for name, definition in {
             "actual_departure": "VARCHAR(5) DEFAULT ''",
             "actual_arrival": "VARCHAR(5) DEFAULT ''",
+            "event_type": "VARCHAR(80) DEFAULT 'Verspätung'",
         }.items():
             if name not in columns:
                 db.session.execute(db.text(f"ALTER TABLE journey ADD COLUMN {name} {definition}"))
+        db.session.execute(db.text("UPDATE journey SET event_type = CASE WHEN cancelled = 1 THEN 'Zug ausgefallen' ELSE 'Verspätung' END WHERE event_type IS NULL OR event_type = ''"))
         db.session.commit()
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "2.2.0", "app": "Fahrgastrechte-Sammler"}
+        return {"status": "ok", "version": "2.3.0", "app": "Fahrgastrechte-Sammler"}
 
     @app.before_request
     def require_setup():
@@ -186,7 +189,8 @@ def create_app() -> Flask:
             years.insert(0, date.today().year)
         stats = {
             "count": len(journeys),
-            "cancelled": sum(1 for j in journeys if j.cancelled),
+            "cancelled": sum(1 for j in journeys if j.event_type == "Zug ausgefallen"),
+            "aborted": sum(1 for j in journeys if j.event_type == "Zugfahrt durch DB abgebrochen"),
             "delay": sum(j.delay_minutes or 0 for j in journeys),
             "claimed": sum(1 for j in journeys if j.compensation_claimed),
         }
@@ -202,7 +206,11 @@ def create_app() -> Flask:
         journey.actual_departure = request.form.get("actual_departure", "")
         journey.actual_arrival = request.form.get("actual_arrival", "")
         journey.delay_minutes = parse_int(request.form.get("delay_minutes", "0"))
-        journey.cancelled = request.form.get("cancelled") == "on"
+        allowed_events = {"Verspätung", "Zug ausgefallen", "Zugfahrt durch DB abgebrochen"}
+        journey.event_type = request.form.get("event_type", "Verspätung").strip()
+        if journey.event_type not in allowed_events:
+            journey.event_type = "Verspätung"
+        journey.cancelled = journey.event_type == "Zug ausgefallen"
         journey.reason = request.form.get("reason", "").strip()
         journey.compensation_claimed = request.form.get("compensation_claimed") == "on"
         journey.notes = request.form.get("notes", "").strip()
@@ -299,7 +307,18 @@ def create_app() -> Flask:
     def export_rows(year: int):
         return Journey.query.filter(db.extract("year", Journey.journey_date) == year).order_by(Journey.journey_date).all()
 
-    headers = ["Datum", "Zugnummer", "Start", "Ziel", "Plan-Abfahrt", "Tatsächliche Abfahrt", "Plan-Ankunft", "Tatsächliche Ankunft", "Verspätung (Min.)", "Ausfall", "Grund / Störung", "Notizen", "Entschädigung beantragt"]
+    headers = ["Datum", "Zugnummer", "Start", "Ziel", "Plan-Abfahrt", "Tatsächliche Abfahrt", "Plan-Ankunft", "Tatsächliche Ankunft", "Verspätung (Min.)", "Ereignisart", "Grund / Störung", "Notizen", "Entschädigung eingereicht", "Unverbindlicher Hinweis"]
+
+    def eligibility_hint(journey: Journey) -> str:
+        if journey.event_type in {"Zug ausgefallen", "Zugfahrt durch DB abgebrochen"}:
+            return "Prüfung durch DB"
+        if (journey.delay_minutes or 0) >= 120:
+            return "Verspätung ab 120 Minuten"
+        if (journey.delay_minutes or 0) >= 60:
+            return "Verspätung ab 60 Minuten"
+        if (journey.delay_minutes or 0) > 0:
+            return "Verspätung unter 60 Minuten"
+        return "Keine Verspätungsminuten eingetragen"
 
     @app.get("/export/csv/<int:year>")
     @login_required
@@ -309,7 +328,7 @@ def create_app() -> Flask:
         writer = csv.writer(output, delimiter=";", lineterminator="\n")
         writer.writerow(headers)
         for j in export_rows(year):
-            writer.writerow([j.journey_date.strftime("%d.%m.%Y"), j.train_number, j.departure_station, j.destination_station, j.scheduled_departure, j.actual_departure, j.scheduled_arrival, j.actual_arrival, j.delay_minutes, "Ja" if j.cancelled else "Nein", j.reason, j.notes, "Ja" if j.compensation_claimed else "Nein"])
+            writer.writerow([j.journey_date.strftime("%d.%m.%Y"), j.train_number, j.departure_station, j.destination_station, j.scheduled_departure, j.actual_departure, j.scheduled_arrival, j.actual_arrival, j.delay_minutes, j.event_type, j.reason, j.notes, "Ja" if j.compensation_claimed else "Nein", eligibility_hint(j)])
         return Response(output.getvalue(), mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": f"attachment; filename=fahrgastrechte-{year}.csv"})
 
     @app.get("/export/xlsx/<int:year>")
@@ -324,10 +343,10 @@ def create_app() -> Flask:
             cell.fill = PatternFill("solid", fgColor="245C4A")
             cell.alignment = Alignment(vertical="center")
         for j in export_rows(year):
-            ws.append([j.journey_date, j.train_number, j.departure_station, j.destination_station, j.scheduled_departure, j.actual_departure, j.scheduled_arrival, j.actual_arrival, j.delay_minutes, "Ja" if j.cancelled else "Nein", j.reason, j.notes, "Ja" if j.compensation_claimed else "Nein"])
+            ws.append([j.journey_date, j.train_number, j.departure_station, j.destination_station, j.scheduled_departure, j.actual_departure, j.scheduled_arrival, j.actual_arrival, j.delay_minutes, j.event_type, j.reason, j.notes, "Ja" if j.compensation_claimed else "Nein", eligibility_hint(j)])
         ws.freeze_panes = "A2"
         ws.auto_filter.ref = ws.dimensions
-        widths = [13, 14, 24, 24, 15, 18, 15, 18, 18, 10, 32, 40, 24]
+        widths = [13, 14, 24, 24, 15, 18, 15, 18, 18, 34, 32, 40, 24, 30]
         from openpyxl.utils import get_column_letter
         for idx, width in enumerate(widths, start=1):
             ws.column_dimensions[get_column_letter(idx)].width = width
