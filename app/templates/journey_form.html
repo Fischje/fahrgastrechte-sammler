@@ -20,9 +20,9 @@
       <div class="row g-3">
         <div class="col-6 col-lg-3"><label class="form-label">Plan-Abfahrt</label><input class="form-control" type="time" name="scheduled_departure" value="{{ journey.scheduled_departure if journey else '' }}"></div>
         <div class="col-6 col-lg-3"><label class="form-label">Tatsächliche Abfahrt</label><input class="form-control" type="time" name="actual_departure" value="{{ journey.actual_departure if journey else '' }}"></div>
-        <div class="col-6 col-lg-3"><label class="form-label">Plan-Ankunft</label><input class="form-control" type="time" name="scheduled_arrival" value="{{ journey.scheduled_arrival if journey else '' }}"></div>
-        <div class="col-6 col-lg-3"><label class="form-label">Tatsächliche Ankunft</label><input class="form-control" type="time" name="actual_arrival" value="{{ journey.actual_arrival if journey else '' }}"></div>
-        <div class="col-md-4"><label class="form-label">Verspätung in Minuten</label><input class="form-control" type="number" min="0" name="delay_minutes" value="{{ journey.delay_minutes if journey else 0 }}"></div>
+        <div class="col-6 col-lg-3"><label class="form-label">Plan-Ankunft</label><input class="form-control" type="time" id="scheduled-arrival" name="scheduled_arrival" value="{{ journey.scheduled_arrival if journey else '' }}"></div>
+        <div class="col-6 col-lg-3"><label class="form-label">Tatsächliche Ankunft</label><input class="form-control" type="time" id="actual-arrival" name="actual_arrival" value="{{ journey.actual_arrival if journey else '' }}"></div>
+        <div class="col-md-4"><label class="form-label">Verspätung in Minuten</label><input class="form-control" id="delay-minutes" type="number" min="0" name="delay_minutes" value="{{ journey.delay_minutes if journey else 0 }}"><div class="form-text">Wird aus Plan- und Ist-Ankunft automatisch berechnet.</div></div>
       </div>
       <div class="section-title mt-4"><span>3</span> Störung und Notizen</div>
       <div class="row g-3">
@@ -34,4 +34,34 @@
     </form>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const scheduled = document.getElementById('scheduled-arrival');
+  const actual = document.getElementById('actual-arrival');
+  const delay = document.getElementById('delay-minutes');
+
+  function minutes(timeValue) {
+    if (!timeValue || !/^\d{2}:\d{2}$/.test(timeValue)) return null;
+    const [hours, mins] = timeValue.split(':').map(Number);
+    return hours * 60 + mins;
+  }
+
+  function updateDelay() {
+    const plan = minutes(scheduled.value);
+    const ist = minutes(actual.value);
+    if (plan === null || ist === null) return;
+
+    let difference = ist - plan;
+    if (difference < -720) difference += 1440;
+    delay.value = Math.max(0, difference);
+  }
+
+  scheduled.addEventListener('change', updateDelay);
+  actual.addEventListener('change', updateDelay);
+  scheduled.addEventListener('input', updateDelay);
+  actual.addEventListener('input', updateDelay);
+})();
+</script>
 {% endblock %}

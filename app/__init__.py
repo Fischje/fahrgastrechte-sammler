@@ -83,6 +83,27 @@ def parse_int(value: str) -> int:
         return 0
 
 
+def calculate_delay_minutes(scheduled_arrival: str, actual_arrival: str) -> int | None:
+    """Calculate arrival delay, including journeys crossing midnight.
+
+    If the actual time is only slightly earlier than scheduled, the train arrived
+    early and the delay is zero. A difference of more than twelve hours is
+    treated as an arrival after midnight on the following day.
+    """
+    if not scheduled_arrival or not actual_arrival:
+        return None
+    try:
+        scheduled = datetime.strptime(scheduled_arrival, "%H:%M")
+        actual = datetime.strptime(actual_arrival, "%H:%M")
+    except ValueError:
+        return None
+
+    difference = int((actual - scheduled).total_seconds() // 60)
+    if difference < -12 * 60:
+        difference += 24 * 60
+    return max(0, difference)
+
+
 def ensure_secret(data_dir: Path) -> str:
     secret_file = data_dir / "secret_key"
     if not secret_file.exists():
@@ -205,7 +226,8 @@ def create_app() -> Flask:
         journey.scheduled_arrival = request.form.get("scheduled_arrival", "")
         journey.actual_departure = request.form.get("actual_departure", "")
         journey.actual_arrival = request.form.get("actual_arrival", "")
-        journey.delay_minutes = parse_int(request.form.get("delay_minutes", "0"))
+        calculated_delay = calculate_delay_minutes(journey.scheduled_arrival, journey.actual_arrival)
+        journey.delay_minutes = calculated_delay if calculated_delay is not None else parse_int(request.form.get("delay_minutes", "0"))
         allowed_events = {"Verspätung", "Zug ausgefallen", "Zugfahrt durch DB abgebrochen"}
         journey.event_type = request.form.get("event_type", "Verspätung").strip()
         if journey.event_type not in allowed_events:

@@ -6,6 +6,7 @@ Eine selbst gehostete, mobile Webanwendung zur Dokumentation von Zugverspätunge
 
 - Ersteinrichtung mit eigenem Benutzernamen und Passwort
 - Erfassung planmäßiger und tatsächlicher Abfahrts- und Ankunftszeiten
+- automatische Berechnung der Verspätungsminuten aus Plan- und Ist-Ankunft, auch über Mitternacht
 - Ereignisarten: Verspätung, Zug ausgefallen, Zugfahrt durch DB abgebrochen
 - unverbindlicher Erstattungshinweis ohne Ausschluss aus Übersicht oder Export
 - Vorschläge für bekannte Zugnummern, Bahnhöfe und Störungen
