@@ -3,8 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#20252c">
+  <meta name="theme-color" content="#20262e">
   <title>{% block title %}Fahrgastrechte-Sammler{% endblock %}</title>
+  <script>
+    // Farbmodus nach Uhrzeit des Geräts: 08:00-18:00 hell, sonst dunkel.
+    (function () {
+      function apply() {
+        var h = new Date().getHours();
+        document.documentElement.setAttribute("data-theme", h >= 8 && h < 18 ? "light" : "dark");
+      }
+      apply();
+      setInterval(apply, 60000);
+    })();
+  </script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
